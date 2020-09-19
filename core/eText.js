@@ -1,28 +1,121 @@
-var eText = require("./core/eText");
+var axios = require("axios");
+var fs = require("fs");
+var qs = require("qs");
 
-const readline = require("readline");
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
-
-async function yesNo(title){
-    return new Promise(async function(re){
-        rl.question("Proseguire con il download di "+ title + "  (y/n) default: n > ", function(yesNo) {
-            yesNo = yesNo.toLowerCase();
-            re((yesNo == "y"));
-        });
-    })
-}
-
-(async function () {
-    var aa = new eText("USERNAME","PASSWORD");
-    await aa.login();
-    var books = await aa.books();
-    for (var i =0;i<books.length;i++){
-        if(await yesNo(books[i].title)){
-            console.log(await aa.download(books[i],__dirname))
-        }
+class EText {
+    u;p;
+    constructor(u,p) {
+        this.u = u;
+        this.p = p;
     }
-    process.exit();
-})()
+    tokens={};
+    async login(){
+        var body = {
+            "password":this.p,
+            "isMobile":"true",
+            "grant_type":"password",
+            "client_id":"2oVGB3Juhj2EURhIREn5GPYgijBm7634",
+            "username":this.u
+        }
+        var tt = this;
+        var bk = {};
+        return new Promise(async function(re){
+            axios({
+                method: "POST",
+                timeout: 6000,
+                url:"https://pi.pearsoned.com/v1/piapi/login/webcredentials",
+                headers:{
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+
+                data:qs.stringify(body)
+
+            }).then(function(d){
+                bk.login = d.data;
+                axios({
+                    method: "GET",
+                    timeout: 6000,
+                    url:"https://etext.pearson.com/api/nextext-api/v1/api/nextext/eps/authtoken",
+                    headers:{
+                        "X-Authorization":d.data.data.access_token
+                    }
+
+                }).then(function(d){
+                    bk.cookie = d.data;
+                    tt.tokens = bk;
+                    re(true);
+                }).catch(function(d){
+                    console.log(d)
+
+                    re(false);
+
+                });
+            }).catch(function(d){
+                console.log(d)
+                re(false);
+
+            });
+        })
+    }
+    async books(){
+
+        var tt = this;
+        console.log("SCRAPING WITH:",tt.tokens.login.data.access_token)
+        return new Promise(async function(re){
+            axios({
+                method: "get",
+                timeout: 6000,
+                url:"https://stpaperapi.prd-prsn.com/etext/v2/courseboot/convergedreader/compositeBookShelf/",
+                headers:{
+                    'x-authorization': tt.tokens.login.data.access_token
+                },
+
+            }).then(function(d){
+
+
+                re(d.data.entries)
+            }).catch(function(d){
+                console.log(d)
+                re(false);
+
+            });
+        })
+    }
+    async download(book, dir = __dirname){
+        var tt = this;
+        var cookie = {
+            "name":this.tokens.cookie.name,
+            "value":this.tokens.cookie.value,
+        }
+        var he = {};
+        he[cookie.name] = cookie.value;
+        console.log("DOWNLOADING");
+        return new Promise(async function(re){
+            axios({
+                method: "get",
+                url:book.uPdfUrl,
+                headers:he,
+                responseType: 'stream'
+            }).then(function(d){
+                const writer = fs.createWriteStream(dir + "/" + book.title + ".pdf");
+                writer.on('finish', ()=>{
+                    console.log("\nDONE\n");
+                    re(true);
+                })
+                writer.on('error', ()=>{
+                    console.log("\nERROR\n");
+                    re(false);
+                })
+                d.data.pipe(writer)
+
+
+            }).catch(function(d){
+                console.log(d);
+                re(false);
+
+            });
+        })
+    }
+
+}
+module.exports = EText;
