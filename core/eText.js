@@ -34,9 +34,7 @@ class EText {
                 headers:{
                     'Content-Type': 'application/x-www-form-urlencoded'
                 },
-
                 data:qs.stringify(body)
-
             }).then(function(d){
                 bk.login = d.data;
                 axios({
@@ -52,22 +50,15 @@ class EText {
                     tt.tokens = bk;
                     re(true);
                 }).catch(function(d){
-                    console.log(d)
-
                     re(false);
-
                 });
             }).catch(function(d){
-                console.log(d)
                 re(false);
-
             });
         })
     }
     async books(){
-
         var tt = this;
-        console.log("SCRAPING WITH:",tt.tokens.login.data.access_token)
         return new Promise(async function(re){
             axios({
                 method: "get",
@@ -76,15 +67,11 @@ class EText {
                 headers:{
                     'x-authorization': tt.tokens.login.data.access_token
                 },
-
             }).then(function(d){
-
-
                 re(d.data.entries)
             }).catch(function(d){
-                console.log(d)
-                re(false);
-
+                console.log("There was an error on /etext/v2/courseboot/convergedreader/compositeBookShelf. Please open an issue on github");
+                re([]);
             });
         })
     }
@@ -109,15 +96,13 @@ class EText {
                     console.log("\nDONE\n");
                     re(true);
                 })
-                writer.on('error', ()=>{
-                    console.log("\nERROR\n");
+                writer.on('error', (e)=>{
+                    console.log("\nERROR\n",e);
                     re(false);
                 })
                 d.data.pipe(writer)
-
-
             }).catch(function(d){
-                console.log(d);
+                console.log("There was an error on trying to download the book. Please open an issue on github");
                 re(false);
 
             });
