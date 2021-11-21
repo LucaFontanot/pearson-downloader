@@ -1,5 +1,5 @@
-# pearson-downloader
-Export pdf from pearson
+# Pearson Downloader
+Export pdf from pearson. *Only E-Text Books*
 
 # How to use
 
